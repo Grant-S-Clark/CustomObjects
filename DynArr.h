@@ -1,459 +1,374 @@
-#ifndef DYN_ARR
-#define DYN_ARR
+//Name: Grant Clark
+//Date: November 29th, 2021
+//File: DynArr.h
+
+#ifndef DYN_ARR_H
+#define DYN_ARR_H
 
 #include <iostream>
 
-template <typename T>
+class NullAlloc{};
+class OutOfRange{};
+
+template<typename T>
 class DynArr{
 private:
-    //Pointer to array of data.
-    T* x_;
-    unsigned int size_;
-    unsigned int capacity_;
+    int size_;
+    int capacity_;
+    T *x_;
 
-    //Returns true if the new size is either greater than current capacity or
-    //if it is less than or equal to one third of the current capacity.
-    inline bool needs_resize(const int size) const
+    //Only resize if new size is greater than capacity or
+    //less than one third of capacity. Avoids unecessary
+    //allocations.
+    inline
+    bool needs_resize(const int new_size)
     {
-        return (capacity_ < size || (capacity_ / 3) >= size);
+        return new_size > capacity_ || new_size < (capacity_ / 3);
     }
-    
-    //Exception throwing function.
-    inline void throw_exception(const char* const message) const
-    {
-        std::cout << "\nERROR: " << message << '\n';
-        throw std::exception();
-    }
-    
 public:
-    DynArr() :
-        x_(nullptr), size_(0), capacity_(0) {return;};
+    //Default Constructor. (Empty array)
+    DynArr<T>() :
+        capacity_(0),
+        size_(0),
+        x_(nullptr)
+    {
+        return;
+    }
+
+    //Constructor with a set starting size.
+    DynArr<T>(const int size) :
+        capacity_(size * 2),
+        size_(size),
+        x_(capacity_ != 0 ? new T[capacity_] : nullptr)
+    {
+        if (x_ == nullptr && capacity_ > 0)
+            throw NullAlloc();
+
+        return;
+    }
+
+    //Constructor with an array and its size (or how many
+    //elements you want to copy from the sent array)
+    //Works with static or dynamic arrays.
+    DynArr<T>(const int size, const T * const arr) :
+        capacity_(size * 2),
+        size_(size),
+        x_(capacity_ != 0 ? new T[capacity_] : nullptr)
+    {
+        if (x_ == nullptr && capacity_ > 0)
+            throw NullAlloc();
+
+        for (int i = 0; i < size_; ++i)
+            *(x_ + i) = *(arr + i);
+
+        return;
+    }
+
+    //Constructor using initializer list.
+    DynArr<T>(const std::initializer_list<T> & list) :
+        capacity_(list.size() * 2),
+        size_(list.size()),
+        x_(capacity_ != 0 ? new T[capacity_] : nullptr)
+    {
+        if (x_ == nullptr && capacity_ > 0)
+            throw NullAlloc();
         
-    //Constructor that allocates a certain amount of room for data.
-    DynArr(int size) :
-        size_(size), capacity_(size)
-    {
-        //0 = empty.
-        if (capacity_ == 0)
-            x_ = nullptr;
-        else
-        {
-            //Allocate space.
-            x_ = new T[capacity_];
-
-            //Allocation failed.
-            if (x_ == nullptr)
-                throw_exception("memory allocation returns NULL.");
-        }
-
+        for (int i = 0; i < size_; ++i)
+            *(x_ + i) = *(list.begin() + i);
+        
         return;
     }
 
-
-    //Constructor that can be used to initialize a DynArr using
-    //a list of elements that match the datatype of the DynArr.
-    DynArr(std::initializer_list<T> l) :
-        size_(l.size()), capacity_(l.size())
+    //Copy constructor.
+    DynArr<T>(const DynArr<T> & arr) :
+        capacity_(arr.capacity()),
+        size_(arr.size()),
+        x_(capacity_ != 0 ? new T[capacity_] : nullptr)
     {
-        //0 = emtpy.
-        if (capacity_ == 0)
-            x_ = nullptr;
-        else
-        {
-            //Allocate space.
-            x_ = new T[capacity_];
-
-            //Allocation failed.
-            if (x_ == nullptr)
-                throw_exception("memory allocation returns NULL.");
-
-            //Copy data.
-            for (int i = 0; i < size_; i++)
-                *(x_ + i) = *(l.begin() + i);
-        }
-
-        return;
-    }
-
-
-    //Constructor that takes a given array and its size and makes
-    //it have the same size and data.
-    DynArr(int size, T a[]) :
-        size_(size), capacity_(size)
-    {
-        //0 = empty.
-        if (capacity_ == 0)
-            x_ = nullptr;
-        else
-        {
-            //Allocate space.
-            x_ = new T[capacity_];
-
-            //Allocation failed.
-            if (x_ == nullptr)
-                throw_exception("memory allocation returns NULL.");
-
-            //Copy data.
-            for (int i = 0; i < size_; i++)
-                *(x_ + i) = a[i];
-        }
-
-        return;
-    }
-
-
-    //Given a DynArr, allocate its same capacity and set the same size value,
-    //then set the same values into the DynArr.
-    DynArr(const DynArr<T> & a)
-    {
-        //Copy values.
-        size_ = a.size();
-        capacity_ = a.capacity();
+        if (x_ == nullptr && capacity_ > 0)
+            throw NullAlloc();
     
-        //If it was empty.
-        if (a.capacity() == 0)
-            x_ = nullptr;
-
-        else
-        {
-            //Allocate space.
-            x_ = new T[capacity_];
-            //Allocation failed.
-            if (x_ == nullptr)
-                throw_exception("memory allocation returns NULL.");
-
-            //Copy data.
-            for (int i = 0; i < size_; i++)
-                *(x_ + i) = a[i];
-        }
-
+        for (int i = 0; i < size_; ++i)
+            *(x_ + i) = arr[i];
+    
         return;
     }
 
-
-    ~DynArr()
+    //Deconstructor.
+    ~DynArr<T>()
     {
-        //If not empty, free the taken space.
-        if(x_ != nullptr)
+        if (x_ != nullptr)
             delete[] x_;
-
         return;
     }
 
-
-    //Return values.
-    unsigned int size() const { return size_; }
-    unsigned int capacity() const { return capacity_; }
-
-
-    //Return data at the given index as a reference.
-    T& operator[](const int index)
+    //Resize the array.
+    void resize(const int capacity)
     {
-        //Out of bounds.
-        if (index >= size_ || index < 0)
-            throw_exception("invalid index called within operator[]().");
-        
-        return *(x_ + index);
-    }
-
-
-    //Return data at the given index as a constant.
-    T operator[](const int index) const
-    {
-        //Out of bounds.
-        if (index >= size_ || index < 0)
-            throw_exception("invalid index called within operator[]().");
-        
-        return *(x_ + index);
-    }
-    
-
-    //Compares the sizes and data points of two DynArr objects.
-    //Returns true if they match.
-    bool operator==(const DynArr<T>& a) const
-    {
-        //If it is the same object.
-        if (this == &a)
-            return true;
-        //If the sizes are not equal.
-        else if (size_ != a.size())
-            return false;
-        else
+        if (needs_resize(capacity))
         {
-            //Compare values.
-            for (int i = 0; i < size_; i++)
-                if (*(x_ + i) != a[i])
-                    return false;
+            T * new_x = (capacity == 0 ? nullptr : new T[capacity * 2]);
+
+            if (capacity != 0 && new_x == nullptr)
+                throw NullAlloc();
+    
+            int loop_size = (capacity < size_ ? capacity : size_);
+            for (int i = 0; i < loop_size; ++i)
+                *(new_x + i) = *(x_ + i);
+
+            capacity_ = capacity * 2;
+            if (x_ != nullptr)
+                delete[] x_;
+            x_ = new_x;
         }
 
+        size_ = capacity;
+    
+        return;
+    }
+
+    //Print the array with its size and capacity. Only works
+    //if the data within the array is compatible with std::cout.
+    void print()
+    {
+        std::cout << "<capacity:" << capacity_ << ", "
+                  << "size:" << size_ << ", "
+                  << *this << ">\n";
+        return;
+    }
+
+    /*
+      Returns true if both arrays are the same size and
+      all values in this object's array are equal to the
+      corresponding values in the parameter array.
+      Array data must be compatible with the != operator.
+    */
+    bool operator==(const DynArr<T> & arr) const
+    {
+        if (this == &arr)
+            return true;
+        
+        if (size_ != arr.size())
+            return false;
+    
+        for (int i = 0; i < size_; ++i)
+            if (*(x_ + i) != arr[i])
+                return false;
+    
         return true;
     }
 
-
-    //Returns opposite of opreator==().
-    bool operator!=(const DynArr<T>& a) const
+    //Returns true if either the array sizes do not match or
+    //any values in the arrays are not equal.
+    //Array data must be compatible with the != operator.
+    bool operator!=(const DynArr<T> & arr) const
     {
-        return !(*this == a);
+        return !(*this == arr);
     }
 
+    //Returns true if the amount of members you are allowed
+    //to access is zero.
+    bool empty() const { return size_ == 0; }
 
-    //Copies the size, capacity, and values of a r-value DynArr
-    //into the l-value DynArr.
-    DynArr<T>& operator=(const DynArr<T>& a)
+    //Completely clears the array.
+    void clear()
     {
-        if (this != &a)
+        if (x_ != nullptr)
         {
-            size_ = a.size();
-            capacity_ = a.capacity();
-
-            //Allocate space.
-            T* x = new T[capacity_];
-            //Allocation fauiled.
-            if (x == nullptr)
-                throw_exception("memory allocation returns NULL.");
-
-            //Copy values.
-            for (int i = 0; i < size; i++)
-                *(x + i) = a[i];
-
-            delete x_;
-            x_ = x;
+            size_ = 0;
+            capacity_ = 0;
+            delete[] x_;
+            x_ = nullptr;
         }
 
-        return *this;
+        return;
     }
-
-
-    //Copies the size and values of an array that the DynArr is
-    //being set to be equal to.
-    DynArr<T>& operator=(std::initializer_list<T> l)
+    
+    //Assignment operator.
+    DynArr<T> & operator=(const DynArr<T> & arr)
     {
-        //Resize
-        if (needs_resize(l.size()))
-            resize(l.size());
-
-        //Set values
-        for (int i = 0; i < l.size(); i++)
-            *(x_ + i) = *(l.begin() + i);
-
-        //Set appropriate size.
-        size_ = l.size();
-
-        return *this;
-    }
-
-
-    //Append values of a given DynArr into the subject DynArr.
-    DynArr<T>& operator+=(const DynArr<T>& a)
-    {
-        //Resize.
-        if (needs_resize(size_ + a.size()))
-            resize(size_ + a.size());
-
-        //Copy values.
-        for (int i = 0; i < a.size(); i++)
-            *(x_ + (size_ + i)) = a[i];
+        if (this != &arr)
+        {
+            resize(arr.size());
+    
+            for (int i = 0; i < size_; ++i)
+                *(x_ + i) = arr[i];
+        }
         
-        //Set appropriate size.
-        size += a.size();
-
         return *this;
     }
 
-
-    //Creates and returns a DynArr built with the l-value DynArr
-    //values in front and the r-value  DynArr values in the back.
-    DynArr<T> operator+(const DynArr<T>& a)
+    //Assignment operator using initializer list.
+    DynArr<T> & operator=(const std::initializer_list<T> & list)
     {
-        //Make new DynArr.
-        DynArr<T> new_a(size + a.get_size());
+        resize(list.size());
 
-        //Copy values.
-        for (int i = 0; i < size_; i++)
-            new_a[i] = *(x_ + i);
-        for (int i = 0; i < a.size(); i++)
-            new_a[size_ + i] = a[i];
-
-        return new_a;
+        for (int i = 0; i < size_; ++i)
+            *(x_ + i) = *(list.begin() + i);
+        
+        return *this;
     }
 
-    //Defenitions for these functions are found below the class.
-    template<typename T2> friend
-    std::ostream& operator<<(std::ostream&, const DynArr<T2>);
-    template<typename T2> friend
-    std::istream& operator>>(std::istream&, DynArr<T2>&);
-    
-
-    //Insert a piece of data into a given data point.
-    DynArr<T>& insert(const int index, const T val)
+    //Concatenation
+    DynArr<T> & operator+=(const DynArr<T> & arr)
     {
-        //Out of bounds.
-        if (index > size_ || index < -1)
-            throw_exception("invalid index called within insert().");
-    
-        //Resize.
-        if (needs_resize(size_ + 1))
-            resize(size_ + 1);
-    
-        //Open a space for the new value.
-        for (int i = size_; i > index; i--)
-            *(x_ + i) = *(x_ + (i - 1));
+        resize(size_ + arr.size());
 
-        //Insert value.
+        for(int i = 0; i < arr.size(); ++i)
+            *(x_ + (size_ - arr.size()) + i) = arr[i];
+    
+        return *this;
+    }
+
+    //Non array altering concatenation
+    DynArr<T> operator+(const DynArr<T> & arr) const
+    {
+        DynArr<T> ret(*this);
+
+        return ret += arr;
+    }
+
+    //Insert element into array at given index.
+    DynArr<T> & insert(const int index, const T & val)
+    {
+        if (index < 0 || index > size_)
+            throw OutOfRange();
+
+        resize(size_ + 1);
+
+        for (int i = size_ - 2; i >= index; --i)
+            *(x_ + i + 1) = *(x_ + i);
+
         *(x_ + index) = val;
 
-        size_++;
+        return *this;
+    }
+
+    //Insert element at the beginning of array.
+    DynArr<T> & push_front(const T & val) { insert(0, val); return *this; }
+
+    //Insert element at the end of array.
+    DynArr<T> & push_back(const T & val) { insert(size_, val); return *this; }
+
+    //Erase an element from array at given index.
+    DynArr<T> & erase(const int index)
+    {
+        if (index < 0 || index >= size_)
+            throw OutOfRange();
+
+        for (int i = index; i < size_ - 1; ++i)
+            *(x_ + i) = *(x_ + i + 1);
+        resize(size_ - 1);
+
+        return *this;
+    }
+
+    //Erase the first element in the array.
+    DynArr<T> & pop_front() { erase(0); return *this; }
+
+    //Erase the last element in the array.
+    DynArr<T> & pop_back() { erase(size_ - 1); return *this; }
+
+    //Erases first element in the array that is equivalent to val.
+    DynArr<T> & remove(const T & val)
+    {
+        for (int i = 0; i < size_; ++i)
+            if (*(x_ + i) == val)
+            {
+                erase(i);
+                return *this;
+            }
+        return *this;
+    }
+
+    //Erase all elements in the array that are equivalent to val.
+    DynArr<T> & remove_all(const T & val)
+    {
+        for (int i = 0; i < size_; ++i)
+            if (*(x_ + i) == val)
+            {
+                erase(i);
+                --i;
+            }
+        return *this;
+    }
+
+    //Create a sub array from given index to given length. If
+    //length is not given, it will go to the end of the array
+    //from the given index.
+    DynArr<T> subarr(const int index, const int length = -1)
+    {
+        if (index < 0 || index >= size_)
+            throw OutOfRange();
         
-        return *this;
-    }
-
-
-    //Removes a value at a given index from the DynArr.
-    DynArr<T>& remove(const int index)
-    {
-        //Out of bounds.
-        if (index >= size_ || index < 0)
-            throw_exception("invalid index called within remove().");
-
-        //Remove value.
-        for (int i = index; i < size_; i++)
-            *(x_ + i) = *(x_ + (i + 1));
-
-        //Resize.
-        if (needs_resize(size_ - 1))
-            resize(size_ - 1);
-
-        size_--;
-
-        return *this;
-    }
-
-
-    //Inserts a value on the end of the DynArr.
-    DynArr<T>& push_back(const T data)
-    {
-        if (needs_resize(size_ + 1))
-            resize(size_ + 1);
-
-        *(x_ + size_) = data;
-
-        size_++;
-
-        return *this;
-    }
-
-
-    //Removes the value at the end of the DynArr.
-    DynArr<T>& pop_back()
-    {
-        if (size_ == 0)
-            throw_exception("cannot pop_back empty DynArr.");
-
-        if (needs_resize(size_ - 1))
-            resize(size_ - 1);
-
-        size_--;
-
-        return *this;
-    }
-
-
-    //Returns value at the back of the DynArr as a reference.
-    T& back()
-    {
-        return *(x_ + (size_ - 1));
-    }
-
-
-    //Returns value at the back of the DynArr as a const.
-    T back() const
-    {
-        return *(x_ + (size_ - 1));
-    }
-
-
-    //Resizes the DynArr to a given size.
-    void resize(const unsigned int size)
-    {
-        T* x;
-
-        //Allocate double space so you dont call resize() as much.
-        capacity_ = size * 2;
-
-        //If empty.
-        if (capacity_ == 0)
-            x = nullptr;
-        else
-        {
-            //Allocate space.
-            x = new T[capacity_];
-
-            //Allocation failed.
-            if (x == nullptr)
-                throw_exception("memory allocation returns NULL.");
-
-            //Copy values into new array.
-            for (int i = 0; i < (size_ > size ? size : size_); i++)
-                *(x + i) = *(x_ + i);
-        }
-
-        delete[] x_;
-        x_ = x;
+        int ret_size = (length < 0 || length > size_ ? size_ - index : length);
+        DynArr<T> ret(ret_size);
         
-        return;
+        for (int i = 0; i < ret_size; ++i)
+            ret[i] = *(x_ + (index + i));
+
+        return ret;
     }
 
+    //Information accessing (No bounding checks)
+    inline T operator[](const int i) const { return *(x_ + i); }
+    inline T & operator[](const int i) { return *(x_ + i); }
 
-    //Prints DynArr values, size, and capacity.
-    inline void print() const
+    //Information accessing (With bounding checks)
+    inline T at(const int i) const
     {
-        std::cout << *this << ", size:" << size_ <<
-            ", capacity:" << capacity_ << '\n';
-    
-        return;
+        if (i < 0 || i >= size_)
+            throw OutOfRange();
+        return *(x_ + i);
+    }
+    inline T & at(const int i)
+    {
+        if (i < 0 || i >= size_)
+            throw OutOfRange();
+        return *(x_ + i);
+    }
+    inline T front() const
+    {
+        if (!empty())
+            return *x_;
+        throw OutOfRange();
+    }
+    inline T & front()
+    {
+        if (!empty())
+            return *x_;
+        throw OutOfRange();
+    }
+    inline T back() const
+    {
+        if (!empty())
+            return *(x_ + (size_ - 1));
+        throw OutOfRange();
+    }
+    inline T & back()
+    {
+        if (!empty())
+            return *(x_ + (size_ - 1));
+        throw OutOfRange();
     }
 
+    //Size access
+    inline int size() const { return size_; }
+
+    //Capacity access
+    inline int capacity() const { return capacity_; }
 };
 
-
-//Prints out values of the DynArr.
+//Printing
 template<typename T>
-std::ostream& operator<<(std::ostream& out, const DynArr<T> a)
+std::ostream & operator<<(std::ostream & cout, const DynArr<T> & arr)
 {
-    out << '[';
-    for (int i = 0; i < a.size(); i++)
-    {
-        out << a[i];
-        if (i != a.size() - 1)
-            out << ", ";
-    }
-    out << ']';
-        
-    return out;
-}
+    cout << '[';
+    for (int i = 0; i < arr.size(); ++i)
+        cout << arr[i] << (i != arr.size() - 1 ? "," : "");
+    cout << ']';
 
-
-//Takes an input integer to allocate space
-//for that many values into the DynArr.
-template<typename T>
-std::istream& operator>>(std::istream& in, DynArr<T>& a)
-{
-    int total;
-
-    std::cout << "Input amount of values: ";
-    in >> total;
-
-    if (total < 0)
-        DynArr::throw_exception("Cannot allocate negative spaces.");
-
-    if (a.needs_resize(total))
-        a.resize(total);
-    a.size_ = total;
-
-    for (int i = 0; i < a.size(); i++)
-        in >> a[i];
-        
-    return in;
+    return cout;
 }
 
 #endif
