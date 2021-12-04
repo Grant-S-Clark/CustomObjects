@@ -1,5 +1,5 @@
 //Name: Grant Clark
-//Date: November 29th, 2021
+//Date: November ??, 2021
 //File: LongInt.cpp
 
 #include "LongInt.h"
@@ -11,6 +11,7 @@ LongInt::LongInt() : sign_(1)
     
     return;
 }
+
 
 LongInt::LongInt(const char s[])
 {
@@ -619,6 +620,12 @@ int LongInt::int_val() const
         ret *= -1;
 
     return ret;
+}
+
+
+LongInt::operator int() const
+{
+    return int_val();
 }
 
 

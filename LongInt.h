@@ -1,5 +1,5 @@
 //Name: Grant Clark
-//Date: November 29th, 2021
+//Date: November ??, 2021
 //File: LongInt.h
 
 #ifndef LONG_INT_H
@@ -70,6 +70,7 @@ public:
     LongInt & multeq_digit(const int);
 
     int int_val() const;
+    explicit operator int() const;
 
 private:   
     std::vector<int> x_;
